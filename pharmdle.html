@@ -1,0 +1,1290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PHARMDLE — Drug Name Game</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f5f2ec;
+    --surface: #ffffff;
+    --border: #d8d3c8;
+    --text: #1a1a1a;
+    --muted: #7a7468;
+    --correct: #3a7d44;
+    --present: #c4870a;
+    --absent: #9e9890;
+    --correct-bg: #d4edda;
+    --present-bg: #fde8b8;
+    --absent-bg: #e8e4dc;
+    --accent: #2d5fa8;
+    --accent-light: #e8eef8;
+    --key-bg: #e0dbd2;
+    --key-text: #1a1a1a;
+    --shadow: 0 2px 12px rgba(0,0,0,0.08);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* HEADER */
+  header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 0 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 60px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+
+  .logo {
+    font-family: 'DM Mono', monospace;
+    font-size: 22px;
+    font-weight: 500;
+    letter-spacing: -0.5px;
+    color: var(--text);
+  }
+
+  .logo span { color: var(--accent); }
+
+  .mode-toggle {
+    display: flex;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+
+  .mode-btn {
+    padding: 6px 16px;
+    font-size: 13px;
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 500;
+    border: none;
+    background: none;
+    cursor: pointer;
+    color: var(--muted);
+    transition: all 0.15s;
+  }
+
+  .mode-btn.active {
+    background: var(--accent);
+    color: white;
+  }
+
+  .header-right {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .icon-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 6px;
+    border-radius: 6px;
+    color: var(--muted);
+    font-size: 20px;
+    transition: background 0.15s;
+    display: flex;
+    align-items: center;
+  }
+
+  .icon-btn:hover { background: var(--bg); }
+
+  /* MAIN */
+  main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 24px 16px 100px;
+    gap: 20px;
+  }
+
+  /* HINT CARD */
+  .hint-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px 20px;
+    width: 100%;
+    max-width: 640px;
+    box-shadow: var(--shadow);
+  }
+
+  .hint-label {
+    font-size: 10px;
+    font-family: 'DM Mono', monospace;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 6px;
+  }
+
+  .hint-value {
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--text);
+    line-height: 1.4;
+  }
+
+  .hints-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    width: 100%;
+    max-width: 640px;
+  }
+
+  .hint-card.locked .hint-value { color: var(--muted); font-style: italic; font-size: 13px; }
+
+  /* GAME GRID */
+  #grid-container {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    overflow-x: auto;
+    max-width: 100%;
+    padding: 4px;
+  }
+
+  .grid-row {
+    display: flex;
+    gap: 5px;
+  }
+
+  .tile {
+    width: 44px;
+    height: 44px;
+    border: 2px solid var(--border);
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'DM Mono', monospace;
+    font-size: 18px;
+    font-weight: 500;
+    text-transform: uppercase;
+    transition: border-color 0.1s;
+    background: var(--surface);
+    flex-shrink: 0;
+    position: relative;
+  }
+
+  .tile.space {
+    width: 20px;
+    border: none;
+    background: transparent;
+    color: var(--muted);
+    font-size: 12px;
+  }
+
+  .tile.filled {
+    border-color: var(--accent);
+    animation: pop 0.1s ease;
+  }
+
+  .tile.correct {
+    background: var(--correct);
+    border-color: var(--correct);
+    color: white;
+    animation: flip 0.4s ease forwards;
+  }
+
+  .tile.present {
+    background: var(--present);
+    border-color: var(--present);
+    color: white;
+    animation: flip 0.4s ease forwards;
+  }
+
+  .tile.absent {
+    background: var(--absent-bg);
+    border-color: var(--absent);
+    color: var(--muted);
+    animation: flip 0.4s ease forwards;
+  }
+
+  @keyframes pop {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.1); }
+    100% { transform: scale(1); }
+  }
+
+  @keyframes flip {
+    0% { transform: rotateX(0); }
+    50% { transform: rotateX(-90deg); }
+    100% { transform: rotateX(0); }
+  }
+
+  .tile.shake { animation: shake 0.4s ease; }
+
+  @keyframes shake {
+    0%,100% { transform: translateX(0); }
+    20% { transform: translateX(-6px); }
+    40% { transform: translateX(6px); }
+    60% { transform: translateX(-4px); }
+    80% { transform: translateX(4px); }
+  }
+
+  /* KEYBOARD */
+  #keyboard {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    padding: 10px 8px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    align-items: center;
+  }
+
+  .kb-row {
+    display: flex;
+    gap: 5px;
+  }
+
+  .kb-key {
+    height: 52px;
+    min-width: 36px;
+    border-radius: 6px;
+    border: none;
+    background: var(--key-bg);
+    color: var(--key-text);
+    font-family: 'DM Mono', monospace;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.2s, color 0.2s;
+    text-transform: uppercase;
+    padding: 0 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .kb-key.wide { min-width: 64px; font-size: 12px; font-family: 'DM Sans', sans-serif; }
+
+  .kb-key.correct { background: var(--correct); color: white; }
+  .kb-key.present { background: var(--present); color: white; }
+  .kb-key.absent { background: var(--absent-bg); color: var(--muted); }
+
+  /* TOAST */
+  .toast {
+    position: fixed;
+    top: 72px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--text);
+    color: white;
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    z-index: 1000;
+    animation: toast-in 0.2s ease, toast-out 0.3s ease 2.5s forwards;
+    pointer-events: none;
+    white-space: nowrap;
+  }
+
+  @keyframes toast-in { from { opacity: 0; transform: translateX(-50%) translateY(-8px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }
+  @keyframes toast-out { from { opacity: 1; } to { opacity: 0; } }
+
+  /* MODAL */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.4);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 500;
+    padding: 16px;
+  }
+
+  .modal {
+    background: var(--surface);
+    border-radius: 16px;
+    padding: 28px;
+    max-width: 440px;
+    width: 100%;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+  }
+
+  .modal h2 {
+    font-size: 22px;
+    font-weight: 600;
+    margin-bottom: 8px;
+  }
+
+  .modal p {
+    font-size: 14px;
+    color: var(--muted);
+    line-height: 1.6;
+    margin-bottom: 16px;
+  }
+
+  .drug-reveal {
+    background: var(--accent-light);
+    border: 1px solid var(--accent);
+    border-radius: 10px;
+    padding: 14px 18px;
+    margin-bottom: 20px;
+  }
+
+  .drug-reveal .label { font-size: 11px; font-family: 'DM Mono', monospace; letter-spacing: 1px; text-transform: uppercase; color: var(--accent); margin-bottom: 4px; }
+  .drug-reveal .name { font-size: 20px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; color: var(--accent); }
+  .drug-reveal .brand { font-size: 13px; color: var(--muted); margin-top: 2px; }
+
+  .drug-details { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
+  .detail-box { background: var(--bg); border-radius: 8px; padding: 10px 12px; }
+  .detail-box .lbl { font-size: 10px; font-family: 'DM Mono', monospace; letter-spacing: 1px; text-transform: uppercase; color: var(--muted); margin-bottom: 3px; }
+  .detail-box .val { font-size: 13px; font-weight: 500; }
+
+  .modal-actions { display: flex; gap: 10px; }
+
+  .btn {
+    flex: 1;
+    padding: 12px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    font-family: 'DM Sans', sans-serif;
+    cursor: pointer;
+    border: none;
+    transition: opacity 0.15s;
+  }
+
+  .btn:hover { opacity: 0.85; }
+  .btn-primary { background: var(--accent); color: white; }
+  .btn-secondary { background: var(--bg); color: var(--text); border: 1px solid var(--border); }
+
+  .share-result {
+    background: var(--bg);
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-family: 'DM Mono', monospace;
+    font-size: 13px;
+    line-height: 1.8;
+    margin-bottom: 16px;
+    text-align: center;
+    letter-spacing: 1px;
+    word-break: break-all;
+  }
+
+  /* HOW TO PLAY */
+  .how-section { margin-bottom: 16px; }
+  .how-section h3 { font-size: 14px; font-weight: 600; margin-bottom: 10px; }
+  .legend { display: flex; flex-direction: column; gap: 8px; }
+  .legend-item { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--muted); }
+  .legend-tile {
+    width: 32px; height: 32px; border-radius: 5px; display: flex; align-items: center; justify-content: center;
+    font-family: 'DM Mono', monospace; font-weight: 500; font-size: 14px; flex-shrink: 0;
+  }
+  .legend-tile.c { background: var(--correct); color: white; }
+  .legend-tile.p { background: var(--present); color: white; }
+  .legend-tile.a { background: var(--absent-bg); color: var(--muted); border: 1px solid var(--border); }
+
+  #stats-timer { font-family: 'DM Mono', monospace; font-size: 28px; font-weight: 300; text-align: center; color: var(--accent); margin: 8px 0 16px; }
+
+  .hidden { display: none !important; }
+
+  /* Drug label for multi-word */
+  .word-separator {
+    display: flex;
+    align-items: center;
+    padding: 0 2px;
+    color: var(--muted);
+    font-size: 11px;
+  }
+
+  @media (max-width: 480px) {
+    .tile { width: 36px; height: 36px; font-size: 14px; }
+    .tile.space { width: 12px; }
+    .kb-key { height: 44px; min-width: 29px; font-size: 12px; }
+    .kb-key.wide { min-width: 52px; font-size: 11px; }
+    .hints-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">PHARM<span>DLE</span></div>
+  <div class="mode-toggle">
+    <button class="mode-btn active" id="btn-daily" onclick="setMode('daily')">Daily</button>
+    <button class="mode-btn" id="btn-practice" onclick="setMode('practice')">Practice</button>
+  </div>
+  <div class="header-right">
+    <button class="icon-btn" onclick="showHow()" title="How to play">?</button>
+    <button class="icon-btn" onclick="showStats()" title="Stats">📊</button>
+  </div>
+</header>
+
+<main>
+  <div class="hints-grid" id="hints-area">
+    <div class="hint-card" id="hint-class">
+      <div class="hint-label">Drug Class</div>
+      <div class="hint-value" id="hv-class">—</div>
+    </div>
+    <div class="hint-card locked" id="hint-brand">
+      <div class="hint-label">Brand Name <span id="brand-lock" style="color:var(--muted);font-size:11px;">(after guess 3)</span></div>
+      <div class="hint-value" id="hv-brand">Locked</div>
+    </div>
+    <div class="hint-card locked" id="hint-controlled">
+      <div class="hint-label">Controlled Substance</div>
+      <div class="hint-value" id="hv-controlled">Locked</div>
+    </div>
+    <div class="hint-card locked" id="hint-specific">
+      <div class="hint-label">Specific Class <span style="color:var(--muted);font-size:11px;">(after guess 2)</span></div>
+      <div class="hint-value" id="hv-specific">Locked</div>
+    </div>
+  </div>
+
+  <div id="grid-container"></div>
+</main>
+
+<div id="keyboard">
+  <div class="kb-row" id="kb-row-1"></div>
+  <div class="kb-row" id="kb-row-2"></div>
+  <div class="kb-row" id="kb-row-3"></div>
+</div>
+
+<!-- Modals -->
+<div class="modal-overlay hidden" id="modal-result">
+  <div class="modal">
+    <h2 id="result-title">🎉 Correct!</h2>
+    <p id="result-subtitle"></p>
+    <div class="drug-reveal">
+      <div class="label">Answer</div>
+      <div class="name" id="res-name"></div>
+      <div class="brand" id="res-brand"></div>
+    </div>
+    <div class="drug-details">
+      <div class="detail-box"><div class="lbl">Class</div><div class="val" id="res-class"></div></div>
+      <div class="detail-box"><div class="lbl">Specific</div><div class="val" id="res-specific"></div></div>
+      <div class="detail-box"><div class="lbl">Controlled</div><div class="val" id="res-controlled"></div></div>
+      <div class="detail-box"><div class="lbl">Dose Range</div><div class="val" id="res-dose"></div></div>
+    </div>
+    <div class="share-result" id="share-grid"></div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="copyResult()">📋 Copy</button>
+      <button class="btn btn-primary" id="next-btn" onclick="nextPractice()">Next Drug →</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay hidden" id="modal-how">
+  <div class="modal">
+    <h2>How to Play</h2>
+    <p>Guess the generic drug name in 6 tries. Type letters and press Enter. Spaces are shown automatically — only guess letter characters.</p>
+    <div class="how-section">
+      <h3>Tile Colors</h3>
+      <div class="legend">
+        <div class="legend-item"><div class="legend-tile c">A</div> Letter is in the correct position</div>
+        <div class="legend-item"><div class="legend-tile p">A</div> Letter is in the word but wrong position</div>
+        <div class="legend-item"><div class="legend-tile a">A</div> Letter is not in the word</div>
+      </div>
+    </div>
+    <br>
+    <div class="how-section">
+      <h3>Hints Unlock Progressively</h3>
+      <p style="margin-bottom:0">Drug class is shown immediately. Specific class unlocks after guess 2. Brand name unlocks after guess 3. Controlled status is always shown.</p>
+    </div>
+    <br>
+    <div class="modal-actions">
+      <button class="btn btn-primary" onclick="closeModal('modal-how')">Got it!</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay hidden" id="modal-stats">
+  <div class="modal">
+    <h2>Your Stats</h2>
+    <div id="stats-content"></div>
+    <div id="stats-timer" class="hidden"></div>
+    <div class="modal-actions">
+      <button class="btn btn-primary" onclick="closeModal('modal-stats')">Close</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ===================== DRUG DATA =====================
+const DRUGS = [
+  {generic:"levothyroxine",brand:"Synthroid, Levoxyl, Levothroid",class:"Hormone / Thyroid",specific:"Thyroid Agent",controlled:"No",dose:"25mcg–300mcg"},
+  {generic:"atorvastatin",brand:"Lipitor",class:"Antihyperlipidemic",specific:"HMG-CoA Reductase Inhibitor",controlled:"No",dose:"10mg–80mg"},
+  {generic:"omeprazole",brand:"Prilosec",class:"Gastric Antisecretory",specific:"Proton Pump Inhibitor (PPI)",controlled:"No",dose:"10mg–40mg"},
+  {generic:"losartan",brand:"Cozaar",class:"Antihypertensive",specific:"ARB",controlled:"No",dose:"25mg–100mg"},
+  {generic:"amlodipine",brand:"Norvasc",class:"Antihypertensive",specific:"Dihydropyridine CCB",controlled:"No",dose:"2.5mg–10mg"},
+  {generic:"gabapentin",brand:"Neurontin",class:"Anticonvulsant",specific:"GABA Analog",controlled:"No",dose:"100mg–800mg"},
+  {generic:"lisinopril",brand:"Prinivil, Zestril",class:"Antihypertensive",specific:"ACE Inhibitor",controlled:"No",dose:"2.5mg–40mg"},
+  {generic:"metformin",brand:"Glucophage",class:"Antidiabetic",specific:"Biguanide",controlled:"No",dose:"500mg–1000mg"},
+  {generic:"sertraline",brand:"Zoloft",class:"Antidepressant",specific:"SSRI",controlled:"No",dose:"25mg–100mg"},
+  {generic:"escitalopram",brand:"Lexapro",class:"Antidepressant",specific:"SSRI",controlled:"No",dose:"5mg–20mg"},
+  {generic:"furosemide",brand:"Lasix",class:"Diuretic",specific:"Loop Diuretic",controlled:"No",dose:"20mg–80mg"},
+  {generic:"trazodone",brand:"Desyrel",class:"Antidepressant",specific:"Serotonin Reuptake Inhibitor",controlled:"No",dose:"50mg–300mg"},
+  {generic:"amphetamine and dextroamphetamine",brand:"Adderall",class:"CNS Agent for ADHD",specific:"CNS Stimulant",controlled:"C-II",dose:"5mg–30mg"},
+  {generic:"hydrocodone and acetaminophen",brand:"Vicodin, Norco",class:"Opioid Analgesic",specific:"Opioid + Non-Opioid Analgesic",controlled:"C-II",dose:"5/300mg–10/325mg"},
+  {generic:"famotidine",brand:"Pepcid",class:"Gastric Antisecretory",specific:"H2 Receptor Antagonist",controlled:"No",dose:"20mg–40mg"},
+  {generic:"duloxetine",brand:"Cymbalta",class:"Antidepressant",specific:"SNRI",controlled:"No",dose:"20mg–60mg"},
+  {generic:"simvastatin",brand:"Zocor",class:"Antihyperlipidemic",specific:"HMG-CoA Reductase Inhibitor",controlled:"No",dose:"5mg–80mg"},
+  {generic:"bupropion",brand:"Wellbutrin",class:"Antidepressant",specific:"Dopamine/Norepinephrine-Reuptake Inhibitor",controlled:"No",dose:"75mg–450mg"},
+  {generic:"albuterol",brand:"Proventil, Proair, Ventolin",class:"Bronchodilator",specific:"Short Acting Beta Agonist (SABA)",controlled:"No",dose:"Inhaled"},
+  {generic:"metoprolol succinate",brand:"Toprol-XL",class:"Antihypertensive",specific:"Selective Beta-Blocker",controlled:"No",dose:"25mg–200mg"},
+  {generic:"apixaban",brand:"Eliquis",class:"Anticoagulant",specific:"DOAC",controlled:"No",dose:"2.5mg–5mg"},
+  {generic:"hydrochlorothiazide",brand:"Microzide",class:"Diuretic",specific:"Thiazide Diuretic",controlled:"No",dose:"12.5mg–50mg"},
+  {generic:"pantoprazole",brand:"Protonix",class:"Gastric Antisecretory",specific:"PPI",controlled:"No",dose:"20mg–40mg"},
+  {generic:"tramadol",brand:"Ultram",class:"Analgesic",specific:"Opioid Analgesic",controlled:"C-IV",dose:"50mg–300mg"},
+  {generic:"carvedilol",brand:"Coreg",class:"Antihypertensive",specific:"Nonselective Beta-Blocker",controlled:"No",dose:"3.125mg–80mg"},
+  {generic:"rosuvastatin",brand:"Crestor",class:"Antihyperlipidemic",specific:"HMG-CoA Reductase Inhibitor",controlled:"No",dose:"5mg–40mg"},
+  {generic:"fluoxetine",brand:"Prozac",class:"Antidepressant",specific:"SSRI",controlled:"No",dose:"10mg–90mg"},
+  {generic:"citalopram",brand:"Celexa",class:"Antidepressant",specific:"SSRI",controlled:"No",dose:"10mg–40mg"},
+  {generic:"venlafaxine",brand:"Effexor",class:"Antidepressant",specific:"SNRI",controlled:"No",dose:"25mg–225mg"},
+  {generic:"montelukast",brand:"Singulair",class:"Antiasthmatic",specific:"Leukotriene Receptor Antagonist",controlled:"No",dose:"4mg–10mg"},
+  {generic:"prednisone",brand:"Deltasone",class:"Anti-inflammatory",specific:"Corticosteroid",controlled:"No",dose:"1mg–50mg"},
+  {generic:"buspirone",brand:"BuSpar",class:"Antianxiety",specific:"Antianxiety Agent",controlled:"No",dose:"5mg–30mg"},
+  {generic:"zolpidem",brand:"Ambien",class:"Sedative",specific:"Nonbenzodiazepine Receptor Agonist",controlled:"C-IV",dose:"1.75mg–12.5mg"},
+  {generic:"lorazepam",brand:"Ativan",class:"Antianxiety",specific:"Benzodiazepine",controlled:"C-IV",dose:"0.5mg–2mg"},
+  {generic:"meloxicam",brand:"Mobic",class:"Nonsteroidal Anti-inflammatory",specific:"NSAID",controlled:"No",dose:"7.5mg–15mg"},
+  {generic:"clonazepam",brand:"Klonopin",class:"Antianxiety",specific:"Benzodiazepine",controlled:"C-IV",dose:"0.125mg–2mg"},
+  {generic:"alprazolam",brand:"Xanax",class:"Antianxiety",specific:"Benzodiazepine",controlled:"C-IV",dose:"0.25mg–3mg"},
+  {generic:"quetiapine",brand:"Seroquel",class:"Antipsychotic",specific:"Second Generation Atypical Antipsychotic",controlled:"No",dose:"25mg–400mg"},
+  {generic:"metoprolol tartrate",brand:"Lopressor",class:"Antihypertensive",specific:"Selective Beta-Blocker",controlled:"No",dose:"25mg–100mg"},
+  {generic:"tamsulosin",brand:"Flomax",class:"BPH Agent",specific:"Alpha-1 Antagonist",controlled:"No",dose:"0.4mg"},
+  {generic:"oxycodone",brand:"OxyContin",class:"Opioid Analgesic",specific:"Opioid Analgesic",controlled:"C-II",dose:"5mg–80mg"},
+  {generic:"fluticasone",brand:"Flonase",class:"Antiallergy",specific:"Topical Corticosteroid",controlled:"No",dose:"Nasal spray"},
+  {generic:"donepezil",brand:"Aricept",class:"Alzheimer's Agent",specific:"Acetylcholinesterase Inhibitor",controlled:"No",dose:"5mg–23mg"},
+  {generic:"clopidogrel",brand:"Plavix",class:"Antiplatelet",specific:"P2Y12 Antagonist",controlled:"No",dose:"75mg–300mg"},
+  {generic:"methylphenidate",brand:"Ritalin, Concerta",class:"CNS Agent for ADHD",specific:"CNS Stimulant",controlled:"C-II",dose:"2.5mg–60mg"},
+  {generic:"allopurinol",brand:"Zyloprim",class:"Gout Agent",specific:"Xanthine Oxidase Inhibitor",controlled:"No",dose:"100mg–300mg"},
+  {generic:"oxycodone and acetaminophen",brand:"Percocet",class:"Opioid Analgesic",specific:"Opioid + Non-Opioid Analgesic",controlled:"C-II",dose:"5/325mg–10/325mg"},
+  {generic:"risperidone",brand:"Risperdal",class:"Antipsychotic",specific:"Second Generation Atypical Antipsychotic",controlled:"No",dose:"0.25mg–4mg"},
+  {generic:"lamotrigine",brand:"Lamictal",class:"Anticonvulsant",specific:"Anticonvulsant",controlled:"No",dose:"2mg–300mg"},
+  {generic:"memantine",brand:"Namenda",class:"Alzheimer's Agent",specific:"NMDA Receptor Antagonist",controlled:"No",dose:"5mg–28mg"},
+  {generic:"diltiazem",brand:"Cardizem",class:"Antihypertensive",specific:"Nondihydropyridine CCB",controlled:"No",dose:"Varies"},
+  {generic:"cyclobenzaprine",brand:"Flexeril",class:"Muscle Relaxant",specific:"Skeletal Muscle Relaxant",controlled:"No",dose:"Varies"},
+  {generic:"lisdexamfetamine",brand:"Vyvanse",class:"CNS Agent for ADHD",specific:"CNS Stimulant",controlled:"C-II",dose:"Varies"},
+  {generic:"oxybutynin",brand:"Ditropan",class:"Urinary Agent",specific:"Urinary Antispasmodic",controlled:"No",dose:"Varies"},
+  {generic:"mirtazapine",brand:"Remeron",class:"Antidepressant",specific:"Alpha-2 Antagonist",controlled:"No",dose:"Varies"},
+  {generic:"potassium chloride",brand:"Klor-Con",class:"Electrolyte",specific:"Electrolyte Supplement",controlled:"No",dose:"Varies"},
+  {generic:"spironolactone",brand:"Aldactone",class:"Diuretic",specific:"Potassium Sparing Diuretic/MRA",controlled:"No",dose:"Varies"},
+  {generic:"divalproex",brand:"Depakote",class:"Anticonvulsant",specific:"Anticonvulsant/Antimanic",controlled:"No",dose:"Varies"},
+  {generic:"cephalexin",brand:"Keflex",class:"Antibiotic",specific:"First Generation Cephalosporin",controlled:"No",dose:"Varies"},
+  {generic:"ondansetron",brand:"Zofran",class:"Antiemetic",specific:"5-HT3 Receptor Antagonist",controlled:"No",dose:"Varies"},
+  {generic:"aripiprazole",brand:"Abilify",class:"Antipsychotic",specific:"Second Generation Atypical Antipsychotic",controlled:"No",dose:"Varies"},
+  {generic:"doxycycline",brand:"Vibramycin",class:"Antibiotic",specific:"Tetracycline Derivative",controlled:"No",dose:"Varies"},
+  {generic:"levetiracetam",brand:"Keppra",class:"Anticonvulsant",specific:"Anticonvulsant",controlled:"No",dose:"Varies"},
+  {generic:"pregabalin",brand:"Lyrica",class:"Anticonvulsant",specific:"GABA Analog",controlled:"C-V",dose:"Varies"},
+  {generic:"diclofenac",brand:"Voltaren Gel",class:"Anti-inflammatory",specific:"NSAID, topical",controlled:"No",dose:"Topical"},
+  {generic:"warfarin",brand:"Coumadin",class:"Anticoagulant",specific:"Vitamin K Antagonist",controlled:"No",dose:"Varies"},
+  {generic:"pravastatin",brand:"Pravachol",class:"Antihyperlipidemic",specific:"HMG-CoA Reductase Inhibitor",controlled:"No",dose:"Varies"},
+  {generic:"esomeprazole",brand:"Nexium",class:"Gastric Antisecretory",specific:"PPI",controlled:"No",dose:"Varies"},
+  {generic:"celecoxib",brand:"Celebrex",class:"Anti-inflammatory",specific:"NSAID",controlled:"No",dose:"Varies"},
+  {generic:"folic acid",brand:"Folic Acid",class:"Vitamin",specific:"Vitamin B9",controlled:"No",dose:"Varies"},
+  {generic:"fluticasone and salmeterol",brand:"Advair",class:"Antiasthmatic/COPD",specific:"Inhaled Corticosteroid + LABA",controlled:"No",dose:"Inhaled"},
+  {generic:"propranolol",brand:"Inderal",class:"Antihypertensive",specific:"Nonselective Beta-Blocker",controlled:"No",dose:"Varies"},
+  {generic:"semaglutide",brand:"Ozempic, Wegovy",class:"Antidiabetic/Weight",specific:"GLP-1 Receptor Agonist",controlled:"No",dose:"Varies"},
+  {generic:"amoxicillin",brand:"Amoxil",class:"Antibiotic",specific:"Aminopenicillin",controlled:"No",dose:"Varies"},
+  {generic:"tizanidine",brand:"Zanaflex",class:"Muscle Relaxant",specific:"Alpha-2 Adrenergic Agonist",controlled:"No",dose:"Varies"},
+  {generic:"atenolol",brand:"Tenormin",class:"Antihypertensive",specific:"Selective Beta-Blocker",controlled:"No",dose:"Varies"},
+  {generic:"morphine",brand:"MS Contin",class:"Opioid Analgesic",specific:"Opioid Analgesic",controlled:"C-II",dose:"Varies"},
+  {generic:"rivaroxaban",brand:"Xarelto",class:"Anticoagulant",specific:"DOAC",controlled:"No",dose:"Varies"},
+  {generic:"latanoprost",brand:"Xalatan",class:"Glaucoma Agent",specific:"Ophthalmic Prostaglandin",controlled:"No",dose:"Ophthalmic"},
+  {generic:"sitagliptin",brand:"Januvia",class:"Antidiabetic",specific:"DPP-4 Inhibitor",controlled:"No",dose:"Varies"},
+  {generic:"topiramate",brand:"Topamax",class:"Anticonvulsant",specific:"Anticonvulsant",controlled:"No",dose:"Varies"},
+  {generic:"finasteride",brand:"Proscar",class:"BPH Agent",specific:"5-Alpha Reductase Inhibitor",controlled:"No",dose:"Varies"},
+  {generic:"hydroxyzine",brand:"Atarax",class:"Antiallergy/Antianxiety",specific:"1st Generation H1 Antagonist",controlled:"No",dose:"Varies"},
+  {generic:"amitriptyline",brand:"Elavil",class:"Antidepressant",specific:"Tricyclic Antidepressant (TCA)",controlled:"No",dose:"Varies"},
+  {generic:"fluconazole",brand:"Diflucan",class:"Antifungal",specific:"Azole Antifungal",controlled:"No",dose:"Varies"},
+  {generic:"alendronate",brand:"Fosamax",class:"Osteoporosis Agent",specific:"Bisphosphonate",controlled:"No",dose:"Varies"},
+  {generic:"sulfamethoxazole and trimethoprim",brand:"Bactrim",class:"Antibiotic",specific:"Sulfonamide Antibiotic",controlled:"No",dose:"Varies"},
+  {generic:"triamcinolone",brand:"Kenalog",class:"Anti-inflammatory",specific:"Corticosteroid, topical",controlled:"No",dose:"Topical/Injectable"},
+  {generic:"tadalafil",brand:"Cialis",class:"Erectile Dysfunction Agent",specific:"PDE-5 Inhibitor",controlled:"No",dose:"Varies"},
+  {generic:"pioglitazone",brand:"Actos",class:"Antidiabetic",specific:"Thiazolidinedione (TZD)",controlled:"No",dose:"Varies"},
+  {generic:"baclofen",brand:"Lioresal",class:"Muscle Relaxant",specific:"Skeletal Muscle Relaxant",controlled:"No",dose:"Varies"},
+  {generic:"clonidine",brand:"Catapres",class:"Antihypertensive/ADHD",specific:"Alpha-2 Adrenergic Agonist",controlled:"No",dose:"Varies"},
+  {generic:"diazepam",brand:"Valium",class:"Antianxiety",specific:"Benzodiazepine",controlled:"C-IV",dose:"Varies"},
+  {generic:"testosterone",brand:"Androgel",class:"Hormone",specific:"Testosterone Derivative",controlled:"C-III",dose:"Varies"},
+  {generic:"estradiol",brand:"Vivelle-Dot, Estrace",class:"Hormone",specific:"Estrogen Derivative",controlled:"No",dose:"Varies"},
+  {generic:"glimepiride",brand:"Amaryl",class:"Antidiabetic",specific:"Sulfonylurea",controlled:"No",dose:"Varies"},
+  {generic:"guanfacine",brand:"Intuniv",class:"Antihypertensive/ADHD",specific:"Alpha-2 Adrenergic Agonist",controlled:"No",dose:"Varies"},
+  {generic:"carbamazepine",brand:"Tegretol",class:"Anticonvulsant",specific:"Anticonvulsant",controlled:"No",dose:"Varies"},
+  {generic:"linagliptin",brand:"Tradjenta",class:"Antidiabetic",specific:"DPP-4 Inhibitor",controlled:"No",dose:"Varies"},
+  {generic:"empagliflozin",brand:"Jardiance",class:"Antidiabetic",specific:"SGLT-2 Inhibitor",controlled:"No",dose:"Varies"},
+  {generic:"dapagliflozin",brand:"Farxiga",class:"Antidiabetic",specific:"SGLT-2 Inhibitor",controlled:"No",dose:"Varies"},
+  {generic:"canagliflozin",brand:"Invokana",class:"Antidiabetic",specific:"SGLT-2 Inhibitor",controlled:"No",dose:"Varies"},
+  {generic:"dulaglutide",brand:"Trulicity",class:"Antidiabetic",specific:"GLP-1 Receptor Agonist",controlled:"No",dose:"Varies"},
+  {generic:"liraglutide",brand:"Victoza, Saxenda",class:"Antidiabetic/Weight",specific:"GLP-1 Receptor Agonist",controlled:"No",dose:"Varies"},
+  {generic:"insulin glargine",brand:"Lantus, Basaglar",class:"Antidiabetic",specific:"Long-Acting Insulin",controlled:"No",dose:"Varies"},
+  {generic:"insulin aspart",brand:"NovoLog",class:"Antidiabetic",specific:"Rapid-Acting Insulin",controlled:"No",dose:"Varies"},
+  {generic:"insulin lispro",brand:"Humalog",class:"Antidiabetic",specific:"Rapid-Acting Insulin",controlled:"No",dose:"Varies"},
+  {generic:"insulin detemir",brand:"Levemir",class:"Antidiabetic",specific:"Long-Acting Insulin",controlled:"No",dose:"Varies"},
+  {generic:"methotrexate",brand:"Rheumatrex",class:"Immunosuppressant",specific:"Antimetabolite",controlled:"No",dose:"Varies"},
+  {generic:"azathioprine",brand:"Imuran",class:"Immunosuppressant",specific:"Antimetabolite",controlled:"No",dose:"Varies"},
+  {generic:"hydroxychloroquine",brand:"Plaquenil",class:"Antirheumatic",specific:"Antimalarial/DMARD",controlled:"No",dose:"Varies"},
+  {generic:"adalimumab",brand:"Humira",class:"Biologic",specific:"TNF-Alpha Inhibitor",controlled:"No",dose:"Varies"},
+  {generic:"etanercept",brand:"Enbrel",class:"Biologic",specific:"TNF-Alpha Inhibitor",controlled:"No",dose:"Varies"},
+  {generic:"infliximab",brand:"Remicade",class:"Biologic",specific:"TNF-Alpha Inhibitor",controlled:"No",dose:"Varies"},
+  {generic:"omalizumab",brand:"Xolair",class:"Antiasthmatic",specific:"Anti-IgE Monoclonal Antibody",controlled:"No",dose:"Varies"},
+  {generic:"dupilumab",brand:"Dupixent",class:"Biologic",specific:"IL-4/IL-13 Receptor Antagonist",controlled:"No",dose:"Varies"},
+  {generic:"budesonide",brand:"Pulmicort, Entocort",class:"Corticosteroid",specific:"Inhaled/Oral Corticosteroid",controlled:"No",dose:"Varies"},
+  {generic:"ipratropium",brand:"Atrovent",class:"Bronchodilator",specific:"Anticholinergic",controlled:"No",dose:"Inhaled"},
+  {generic:"tiotropium",brand:"Spiriva",class:"Bronchodilator",specific:"Long-Acting Anticholinergic",controlled:"No",dose:"Inhaled"},
+  {generic:"formoterol",brand:"Foradil",class:"Bronchodilator",specific:"LABA",controlled:"No",dose:"Inhaled"},
+  {generic:"salmeterol",brand:"Serevent",class:"Bronchodilator",specific:"LABA",controlled:"No",dose:"Inhaled"},
+  {generic:"roflumilast",brand:"Daliresp",class:"COPD Agent",specific:"PDE-4 Inhibitor",controlled:"No",dose:"Varies"},
+  {generic:"clobetasol",brand:"Temovate",class:"Topical Corticosteroid",specific:"Super-Potent Corticosteroid",controlled:"No",dose:"Topical"},
+  {generic:"hydrocortisone",brand:"Cortef",class:"Corticosteroid",specific:"Low-Potency Corticosteroid",controlled:"No",dose:"Varies"},
+  {generic:"methylprednisolone",brand:"Medrol, Solu-Medrol",class:"Corticosteroid",specific:"Corticosteroid",controlled:"No",dose:"Varies"},
+  {generic:"dexamethasone",brand:"Decadron",class:"Corticosteroid",specific:"Corticosteroid",controlled:"No",dose:"Varies"},
+  {generic:"naproxen",brand:"Aleve, Naprosyn",class:"Anti-inflammatory",specific:"NSAID",controlled:"No",dose:"Varies"},
+  {generic:"ibuprofen",brand:"Advil, Motrin",class:"Anti-inflammatory",specific:"NSAID",controlled:"No",dose:"Varies"},
+  {generic:"ketorolac",brand:"Toradol",class:"Anti-inflammatory",specific:"NSAID",controlled:"No",dose:"Varies"},
+  {generic:"indomethacin",brand:"Indocin",class:"Anti-inflammatory",specific:"NSAID",controlled:"No",dose:"Varies"},
+  {generic:"acetaminophen",brand:"Tylenol",class:"Analgesic",specific:"Non-Opioid Analgesic",controlled:"No",dose:"Varies"},
+  {generic:"aspirin",brand:"Bayer, Ecotrin",class:"Analgesic/Antiplatelet",specific:"Salicylate",controlled:"No",dose:"Varies"},
+  {generic:"fentanyl",brand:"Duragesic",class:"Opioid Analgesic",specific:"Opioid Analgesic",controlled:"C-II",dose:"Varies"},
+  {generic:"buprenorphine",brand:"Suboxone, Belbuca",class:"Opioid Analgesic",specific:"Partial Opioid Agonist",controlled:"C-III",dose:"Varies"},
+  {generic:"naloxone",brand:"Narcan",class:"Opioid Antagonist",specific:"Opioid Antagonist",controlled:"No",dose:"Varies"},
+  {generic:"naltrexone",brand:"Vivitrol",class:"Opioid Antagonist",specific:"Opioid Antagonist",controlled:"No",dose:"Varies"},
+  {generic:"methadone",brand:"Dolophine",class:"Opioid Analgesic",specific:"Opioid Analgesic",controlled:"C-II",dose:"Varies"},
+  {generic:"codeine",brand:"Tylenol with Codeine",class:"Opioid Analgesic",specific:"Opioid Analgesic",controlled:"C-II",dose:"Varies"},
+  {generic:"hydromorphone",brand:"Dilaudid",class:"Opioid Analgesic",specific:"Opioid Analgesic",controlled:"C-II",dose:"Varies"},
+  {generic:"amoxicillin and clavulanate",brand:"Augmentin",class:"Antibiotic",specific:"Aminopenicillin + Beta-Lactamase Inhibitor",controlled:"No",dose:"Varies"},
+  {generic:"azithromycin",brand:"Zithromax",class:"Antibiotic",specific:"Macrolide Antibiotic",controlled:"No",dose:"Varies"},
+  {generic:"clarithromycin",brand:"Biaxin",class:"Antibiotic",specific:"Macrolide Antibiotic",controlled:"No",dose:"Varies"},
+  {generic:"erythromycin",brand:"Ery-Tab",class:"Antibiotic",specific:"Macrolide Antibiotic",controlled:"No",dose:"Varies"},
+  {generic:"ciprofloxacin",brand:"Cipro",class:"Antibiotic",specific:"Fluoroquinolone",controlled:"No",dose:"Varies"},
+  {generic:"levofloxacin",brand:"Levaquin",class:"Antibiotic",specific:"Fluoroquinolone",controlled:"No",dose:"Varies"},
+  {generic:"moxifloxacin",brand:"Avelox",class:"Antibiotic",specific:"Fluoroquinolone",controlled:"No",dose:"Varies"},
+  {generic:"clindamycin",brand:"Cleocin",class:"Antibiotic",specific:"Lincosamide Antibiotic",controlled:"No",dose:"Varies"},
+  {generic:"metronidazole",brand:"Flagyl",class:"Antibiotic",specific:"Nitroimidazole Antibiotic",controlled:"No",dose:"Varies"},
+  {generic:"nitrofurantoin",brand:"Macrobid",class:"Antibiotic",specific:"Nitrofuran Antibiotic",controlled:"No",dose:"Varies"},
+  {generic:"vancomycin",brand:"Vancocin",class:"Antibiotic",specific:"Glycopeptide Antibiotic",controlled:"No",dose:"Varies"},
+  {generic:"linezolid",brand:"Zyvox",class:"Antibiotic",specific:"Oxazolidinone Antibiotic",controlled:"No",dose:"Varies"},
+  {generic:"tetracycline",brand:"Sumycin",class:"Antibiotic",specific:"Tetracycline",controlled:"No",dose:"Varies"},
+  {generic:"minocycline",brand:"Minocin",class:"Antibiotic",specific:"Tetracycline Derivative",controlled:"No",dose:"Varies"},
+  {generic:"acyclovir",brand:"Zovirax",class:"Antiviral",specific:"Nucleoside Analog",controlled:"No",dose:"Varies"},
+  {generic:"valacyclovir",brand:"Valtrex",class:"Antiviral",specific:"Prodrug of Acyclovir",controlled:"No",dose:"Varies"},
+  {generic:"oseltamivir",brand:"Tamiflu",class:"Antiviral",specific:"Neuraminidase Inhibitor",controlled:"No",dose:"Varies"},
+  {generic:"voriconazole",brand:"Vfend",class:"Antifungal",specific:"Azole Antifungal",controlled:"No",dose:"Varies"},
+  {generic:"itraconazole",brand:"Sporanox",class:"Antifungal",specific:"Azole Antifungal",controlled:"No",dose:"Varies"},
+  {generic:"terbinafine",brand:"Lamisil",class:"Antifungal",specific:"Allylamine Antifungal",controlled:"No",dose:"Varies"},
+  {generic:"nystatin",brand:"Mycostatin",class:"Antifungal",specific:"Polyene Antifungal",controlled:"No",dose:"Varies"},
+  {generic:"digoxin",brand:"Lanoxin",class:"Cardiac Glycoside",specific:"Cardiac Glycoside",controlled:"No",dose:"Varies"},
+  {generic:"amiodarone",brand:"Cordarone",class:"Antiarrhythmic",specific:"Class III Antiarrhythmic",controlled:"No",dose:"Varies"},
+  {generic:"sotalol",brand:"Betapace",class:"Antiarrhythmic",specific:"Class II/III Antiarrhythmic",controlled:"No",dose:"Varies"},
+  {generic:"flecainide",brand:"Tambocor",class:"Antiarrhythmic",specific:"Class IC Antiarrhythmic",controlled:"No",dose:"Varies"},
+  {generic:"ivabradine",brand:"Corlanor",class:"Heart Rate Agent",specific:"HCN Channel Blocker",controlled:"No",dose:"Varies"},
+  {generic:"sacubitril and valsartan",brand:"Entresto",class:"Heart Failure Agent",specific:"ARNI",controlled:"No",dose:"Varies"},
+  {generic:"isosorbide mononitrate",brand:"Imdur",class:"Antianginal",specific:"Nitrate",controlled:"No",dose:"Varies"},
+  {generic:"nitroglycerin",brand:"Nitrostat",class:"Antianginal",specific:"Nitrate",controlled:"No",dose:"Varies"},
+  {generic:"hydralazine",brand:"Apresoline",class:"Antihypertensive",specific:"Direct Vasodilator",controlled:"No",dose:"Varies"},
+  {generic:"minoxidil",brand:"Loniten, Rogaine",class:"Antihypertensive/Hair",specific:"Direct Vasodilator",controlled:"No",dose:"Varies"},
+  {generic:"nifedipine",brand:"Procardia",class:"Antihypertensive",specific:"Dihydropyridine CCB",controlled:"No",dose:"Varies"},
+  {generic:"verapamil",brand:"Calan",class:"Antihypertensive",specific:"Nondihydropyridine CCB",controlled:"No",dose:"Varies"},
+  {generic:"felodipine",brand:"Plendil",class:"Antihypertensive",specific:"Dihydropyridine CCB",controlled:"No",dose:"Varies"},
+  {generic:"olmesartan",brand:"Benicar",class:"Antihypertensive",specific:"ARB",controlled:"No",dose:"Varies"},
+  {generic:"valsartan",brand:"Diovan",class:"Antihypertensive",specific:"ARB",controlled:"No",dose:"Varies"},
+  {generic:"irbesartan",brand:"Avapro",class:"Antihypertensive",specific:"ARB",controlled:"No",dose:"Varies"},
+  {generic:"candesartan",brand:"Atacand",class:"Antihypertensive",specific:"ARB",controlled:"No",dose:"Varies"},
+  {generic:"telmisartan",brand:"Micardis",class:"Antihypertensive",specific:"ARB",controlled:"No",dose:"Varies"},
+  {generic:"enalapril",brand:"Vasotec",class:"Antihypertensive",specific:"ACE Inhibitor",controlled:"No",dose:"Varies"},
+  {generic:"ramipril",brand:"Altace",class:"Antihypertensive",specific:"ACE Inhibitor",controlled:"No",dose:"Varies"},
+  {generic:"benazepril",brand:"Lotensin",class:"Antihypertensive",specific:"ACE Inhibitor",controlled:"No",dose:"Varies"},
+  {generic:"quinapril",brand:"Accupril",class:"Antihypertensive",specific:"ACE Inhibitor",controlled:"No",dose:"Varies"},
+  {generic:"fosinopril",brand:"Monopril",class:"Antihypertensive",specific:"ACE Inhibitor",controlled:"No",dose:"Varies"},
+  {generic:"chlorthalidone",brand:"Hygroton",class:"Diuretic",specific:"Thiazide-Like Diuretic",controlled:"No",dose:"Varies"},
+  {generic:"indapamide",brand:"Lozol",class:"Diuretic",specific:"Thiazide-Like Diuretic",controlled:"No",dose:"Varies"},
+  {generic:"torsemide",brand:"Demadex",class:"Diuretic",specific:"Loop Diuretic",controlled:"No",dose:"Varies"},
+  {generic:"bumetanide",brand:"Bumex",class:"Diuretic",specific:"Loop Diuretic",controlled:"No",dose:"Varies"},
+  {generic:"eplerenone",brand:"Inspra",class:"Diuretic",specific:"Potassium Sparing Diuretic/MRA",controlled:"No",dose:"Varies"},
+  {generic:"fenofibrate",brand:"Tricor",class:"Antihyperlipidemic",specific:"Fibric Acid Derivative",controlled:"No",dose:"Varies"},
+  {generic:"gemfibrozil",brand:"Lopid",class:"Antihyperlipidemic",specific:"Fibric Acid Derivative",controlled:"No",dose:"Varies"},
+  {generic:"ezetimibe",brand:"Zetia",class:"Antihyperlipidemic",specific:"Cholesterol Absorption Inhibitor",controlled:"No",dose:"Varies"},
+  {generic:"niacin",brand:"Niaspan",class:"Antihyperlipidemic",specific:"Nicotinic Acid",controlled:"No",dose:"Varies"},
+  {generic:"colestipol",brand:"Colestid",class:"Antihyperlipidemic",specific:"Bile Acid Sequestrant",controlled:"No",dose:"Varies"},
+  {generic:"cholestyramine",brand:"Questran",class:"Antihyperlipidemic",specific:"Bile Acid Sequestrant",controlled:"No",dose:"Varies"},
+  {generic:"evolocumab",brand:"Repatha",class:"Antihyperlipidemic",specific:"PCSK9 Inhibitor",controlled:"No",dose:"Varies"},
+  {generic:"alirocumab",brand:"Praluent",class:"Antihyperlipidemic",specific:"PCSK9 Inhibitor",controlled:"No",dose:"Varies"},
+  {generic:"inclisiran",brand:"Leqvio",class:"Antihyperlipidemic",specific:"siRNA PCSK9 Inhibitor",controlled:"No",dose:"Varies"},
+  {generic:"glipizide",brand:"Glucotrol",class:"Antidiabetic",specific:"Sulfonylurea",controlled:"No",dose:"Varies"},
+  {generic:"glyburide",brand:"Diabeta",class:"Antidiabetic",specific:"Sulfonylurea",controlled:"No",dose:"Varies"},
+  {generic:"repaglinide",brand:"Prandin",class:"Antidiabetic",specific:"Meglitinide",controlled:"No",dose:"Varies"},
+  {generic:"acarbose",brand:"Precose",class:"Antidiabetic",specific:"Alpha-Glucosidase Inhibitor",controlled:"No",dose:"Varies"},
+  {generic:"exenatide",brand:"Byetta, Bydureon",class:"Antidiabetic",specific:"GLP-1 Receptor Agonist",controlled:"No",dose:"Varies"},
+  {generic:"tirzepatide",brand:"Mounjaro, Zepbound",class:"Antidiabetic/Weight",specific:"GIP/GLP-1 Receptor Agonist",controlled:"No",dose:"Varies"},
+  {generic:"lithium",brand:"Lithobid",class:"Bipolar Agent",specific:"Mood Stabilizer",controlled:"No",dose:"Varies"},
+  {generic:"valproic acid",brand:"Depakene",class:"Anticonvulsant",specific:"Anticonvulsant/Antimanic",controlled:"No",dose:"Varies"},
+  {generic:"oxcarbazepine",brand:"Trileptal",class:"Anticonvulsant",specific:"Anticonvulsant",controlled:"No",dose:"Varies"},
+  {generic:"phenytoin",brand:"Dilantin",class:"Anticonvulsant",specific:"Hydantoin Anticonvulsant",controlled:"No",dose:"Varies"},
+  {generic:"phenobarbital",brand:"Luminal",class:"Anticonvulsant",specific:"Barbiturate",controlled:"C-IV",dose:"Varies"},
+  {generic:"zonisamide",brand:"Zonegran",class:"Anticonvulsant",specific:"Anticonvulsant",controlled:"No",dose:"Varies"},
+  {generic:"lacosamide",brand:"Vimpat",class:"Anticonvulsant",specific:"Anticonvulsant",controlled:"C-V",dose:"Varies"},
+  {generic:"perampanel",brand:"Fycompa",class:"Anticonvulsant",specific:"AMPA Receptor Antagonist",controlled:"C-III",dose:"Varies"},
+  {generic:"brivaracetam",brand:"Briviact",class:"Anticonvulsant",specific:"Anticonvulsant",controlled:"C-V",dose:"Varies"},
+  {generic:"olanzapine",brand:"Zyprexa",class:"Antipsychotic",specific:"Second Generation Atypical Antipsychotic",controlled:"No",dose:"Varies"},
+  {generic:"ziprasidone",brand:"Geodon",class:"Antipsychotic",specific:"Second Generation Atypical Antipsychotic",controlled:"No",dose:"Varies"},
+  {generic:"lurasidone",brand:"Latuda",class:"Antipsychotic",specific:"Second Generation Atypical Antipsychotic",controlled:"No",dose:"Varies"},
+  {generic:"paliperidone",brand:"Invega",class:"Antipsychotic",specific:"Second Generation Atypical Antipsychotic",controlled:"No",dose:"Varies"},
+  {generic:"clozapine",brand:"Clozaril",class:"Antipsychotic",specific:"Second Generation Atypical Antipsychotic",controlled:"No",dose:"Varies"},
+  {generic:"haloperidol",brand:"Haldol",class:"Antipsychotic",specific:"First Generation Antipsychotic",controlled:"No",dose:"Varies"},
+  {generic:"fluphenazine",brand:"Prolixin",class:"Antipsychotic",specific:"First Generation Antipsychotic",controlled:"No",dose:"Varies"},
+  {generic:"chlorpromazine",brand:"Thorazine",class:"Antipsychotic",specific:"First Generation Antipsychotic",controlled:"No",dose:"Varies"},
+  {generic:"paroxetine",brand:"Paxil",class:"Antidepressant",specific:"SSRI",controlled:"No",dose:"Varies"},
+  {generic:"fluvoxamine",brand:"Luvox",class:"Antidepressant",specific:"SSRI",controlled:"No",dose:"Varies"},
+  {generic:"desvenlafaxine",brand:"Pristiq",class:"Antidepressant",specific:"SNRI",controlled:"No",dose:"Varies"},
+  {generic:"levomilnacipran",brand:"Fetzima",class:"Antidepressant",specific:"SNRI",controlled:"No",dose:"Varies"},
+  {generic:"vilazodone",brand:"Viibryd",class:"Antidepressant",specific:"SSRI/Partial 5-HT1A Agonist",controlled:"No",dose:"Varies"},
+  {generic:"vortioxetine",brand:"Trintellix",class:"Antidepressant",specific:"Serotonin Modulator",controlled:"No",dose:"Varies"},
+  {generic:"nortriptyline",brand:"Pamelor",class:"Antidepressant",specific:"Tricyclic Antidepressant (TCA)",controlled:"No",dose:"Varies"},
+  {generic:"imipramine",brand:"Tofranil",class:"Antidepressant",specific:"Tricyclic Antidepressant (TCA)",controlled:"No",dose:"Varies"},
+  {generic:"desipramine",brand:"Norpramin",class:"Antidepressant",specific:"Tricyclic Antidepressant (TCA)",controlled:"No",dose:"Varies"},
+  {generic:"phenelzine",brand:"Nardil",class:"Antidepressant",specific:"MAO Inhibitor",controlled:"No",dose:"Varies"},
+  {generic:"tranylcypromine",brand:"Parnate",class:"Antidepressant",specific:"MAO Inhibitor",controlled:"No",dose:"Varies"},
+  {generic:"selegiline",brand:"Emsam",class:"Antidepressant/Parkinson's",specific:"MAO-B Inhibitor",controlled:"No",dose:"Varies"},
+  {generic:"levodopa and carbidopa",brand:"Sinemet",class:"Parkinson's Agent",specific:"Dopamine Precursor + Decarboxylase Inhibitor",controlled:"No",dose:"Varies"},
+  {generic:"pramipexole",brand:"Mirapex",class:"Parkinson's Agent",specific:"Dopamine Agonist",controlled:"No",dose:"Varies"},
+  {generic:"ropinirole",brand:"Requip",class:"Parkinson's Agent",specific:"Dopamine Agonist",controlled:"No",dose:"Varies"},
+  {generic:"rasagiline",brand:"Azilect",class:"Parkinson's Agent",specific:"MAO-B Inhibitor",controlled:"No",dose:"Varies"},
+  {generic:"entacapone",brand:"Comtan",class:"Parkinson's Agent",specific:"COMT Inhibitor",controlled:"No",dose:"Varies"},
+  {generic:"rivastigmine",brand:"Exelon",class:"Alzheimer's Agent",specific:"Acetylcholinesterase Inhibitor",controlled:"No",dose:"Varies"},
+  {generic:"galantamine",brand:"Razadyne",class:"Alzheimer's Agent",specific:"Acetylcholinesterase Inhibitor",controlled:"No",dose:"Varies"},
+  {generic:"sumatriptan",brand:"Imitrex",class:"Migraine Agent",specific:"5-HT1B/1D Agonist (Triptan)",controlled:"No",dose:"Varies"},
+  {generic:"rizatriptan",brand:"Maxalt",class:"Migraine Agent",specific:"5-HT1B/1D Agonist (Triptan)",controlled:"No",dose:"Varies"},
+  {generic:"topiramate",brand:"Topamax",class:"Migraine Prophylaxis",specific:"Anticonvulsant",controlled:"No",dose:"Varies"},
+  {generic:"propranolol",brand:"Inderal",class:"Migraine Prophylaxis",specific:"Nonselective Beta-Blocker",controlled:"No",dose:"Varies"},
+  {generic:"erenumab",brand:"Aimovig",class:"Migraine Prophylaxis",specific:"CGRP Receptor Antagonist",controlled:"No",dose:"Varies"},
+  {generic:"fremanezumab",brand:"Ajovy",class:"Migraine Prophylaxis",specific:"CGRP Antagonist",controlled:"No",dose:"Varies"},
+  {generic:"rimegepant",brand:"Nurtec",class:"Migraine Agent",specific:"CGRP Receptor Antagonist",controlled:"No",dose:"Varies"},
+  {generic:"ubrogepant",brand:"Ubrelvy",class:"Migraine Agent",specific:"CGRP Receptor Antagonist",controlled:"No",dose:"Varies"},
+  {generic:"ondansetron",brand:"Zofran",class:"Antiemetic",specific:"5-HT3 Receptor Antagonist",controlled:"No",dose:"Varies"},
+  {generic:"promethazine",brand:"Phenergan",class:"Antiemetic",specific:"Phenothiazine Antiemetic",controlled:"No",dose:"Varies"},
+  {generic:"metoclopramide",brand:"Reglan",class:"Antiemetic",specific:"Dopamine Antagonist",controlled:"No",dose:"Varies"},
+  {generic:"prochlorperazine",brand:"Compazine",class:"Antiemetic",specific:"Phenothiazine Antiemetic",controlled:"No",dose:"Varies"},
+  {generic:"scopolamine",brand:"Transderm Scop",class:"Antiemetic/Anticholinergic",specific:"Anticholinergic",controlled:"No",dose:"Patch"},
+  {generic:"ranitidine",brand:"Zantac",class:"Gastric Antisecretory",specific:"H2 Receptor Antagonist",controlled:"No",dose:"Varies"},
+  {generic:"cimetidine",brand:"Tagamet",class:"Gastric Antisecretory",specific:"H2 Receptor Antagonist",controlled:"No",dose:"Varies"},
+  {generic:"sucralfate",brand:"Carafate",class:"GI Agent",specific:"Mucosal Protectant",controlled:"No",dose:"Varies"},
+  {generic:"misoprostol",brand:"Cytotec",class:"GI Agent",specific:"Prostaglandin E1 Analog",controlled:"No",dose:"Varies"},
+  {generic:"lubiprostone",brand:"Amitiza",class:"GI Agent",specific:"Chloride Channel Activator",controlled:"No",dose:"Varies"},
+  {generic:"linaclotide",brand:"Linzess",class:"GI Agent",specific:"Guanylate Cyclase Agonist",controlled:"No",dose:"Varies"},
+  {generic:"loperamide",brand:"Imodium",class:"Antidiarrheal",specific:"Opioid Agonist (Peripheral)",controlled:"No",dose:"Varies"},
+  {generic:"bismuth subsalicylate",brand:"Pepto-Bismol",class:"GI Agent",specific:"Bismuth Salt",controlled:"No",dose:"Varies"},
+  {generic:"mesalamine",brand:"Asacol, Lialda",class:"GI Anti-inflammatory",specific:"Aminosalicylate",controlled:"No",dose:"Varies"},
+  {generic:"infliximab",brand:"Remicade",class:"Biologic/GI",specific:"TNF-Alpha Inhibitor",controlled:"No",dose:"Varies"},
+  {generic:"vedolizumab",brand:"Entyvio",class:"Biologic/GI",specific:"Integrin Receptor Antagonist",controlled:"No",dose:"Varies"},
+  {generic:"ustekinumab",brand:"Stelara",class:"Biologic",specific:"IL-12/23 Antagonist",controlled:"No",dose:"Varies"},
+  {generic:"sildenafil",brand:"Viagra, Revatio",class:"ED/Pulmonary Agent",specific:"PDE-5 Inhibitor",controlled:"No",dose:"Varies"},
+  {generic:"vardenafil",brand:"Levitra",class:"Erectile Dysfunction Agent",specific:"PDE-5 Inhibitor",controlled:"No",dose:"Varies"},
+  {generic:"avanafil",brand:"Stendra",class:"Erectile Dysfunction Agent",specific:"PDE-5 Inhibitor",controlled:"No",dose:"Varies"},
+  {generic:"dutasteride",brand:"Avodart",class:"BPH Agent",specific:"5-Alpha Reductase Inhibitor",controlled:"No",dose:"Varies"},
+  {generic:"alfuzosin",brand:"Uroxatral",class:"BPH Agent",specific:"Alpha-1 Antagonist",controlled:"No",dose:"Varies"},
+  {generic:"solifenacin",brand:"Vesicare",class:"Urinary Agent",specific:"Urinary Antispasmodic",controlled:"No",dose:"Varies"},
+  {generic:"tolterodine",brand:"Detrol",class:"Urinary Agent",specific:"Urinary Antispasmodic",controlled:"No",dose:"Varies"},
+  {generic:"mirabegron",brand:"Myrbetriq",class:"Urinary Agent",specific:"Beta-3 Adrenergic Agonist",controlled:"No",dose:"Varies"},
+  {generic:"bethanechol",brand:"Urecholine",class:"Urinary Agent",specific:"Cholinergic Agonist",controlled:"No",dose:"Varies"},
+  {generic:"calcitriol",brand:"Rocaltrol",class:"Vitamin D Agent",specific:"Active Vitamin D",controlled:"No",dose:"Varies"},
+  {generic:"ergocalciferol",brand:"Drisdol",class:"Vitamin",specific:"Vitamin D2",controlled:"No",dose:"Varies"},
+  {generic:"cholecalciferol",brand:"Vitamin D3",class:"Vitamin",specific:"Vitamin D3",controlled:"No",dose:"Varies"},
+  {generic:"cyanocobalamin",brand:"Nascobal",class:"Vitamin",specific:"Vitamin B12",controlled:"No",dose:"Varies"},
+  {generic:"ferrous sulfate",brand:"Feosol",class:"Iron Supplement",specific:"Iron Salt",controlled:"No",dose:"Varies"},
+  {generic:"calcium carbonate",brand:"Tums, Os-Cal",class:"Calcium Supplement",specific:"Calcium Salt",controlled:"No",dose:"Varies"},
+  {generic:"zoledronic acid",brand:"Reclast",class:"Osteoporosis Agent",specific:"Bisphosphonate",controlled:"No",dose:"Varies"},
+  {generic:"risedronate",brand:"Actonel",class:"Osteoporosis Agent",specific:"Bisphosphonate",controlled:"No",dose:"Varies"},
+  {generic:"denosumab",brand:"Prolia, Xgeva",class:"Osteoporosis/Oncology Agent",specific:"RANK Ligand Inhibitor",controlled:"No",dose:"Varies"},
+  {generic:"raloxifene",brand:"Evista",class:"Osteoporosis Agent",specific:"Selective Estrogen Receptor Modulator (SERM)",controlled:"No",dose:"Varies"},
+  {generic:"teriparatide",brand:"Forteo",class:"Osteoporosis Agent",specific:"PTH Analog",controlled:"No",dose:"Varies"},
+  {generic:"levonorgestrel",brand:"Plan B, Mirena",class:"Contraceptive",specific:"Progestin",controlled:"No",dose:"Varies"},
+  {generic:"medroxyprogesterone",brand:"Depo-Provera",class:"Contraceptive/Hormone",specific:"Progestin",controlled:"No",dose:"Varies"},
+  {generic:"norethindrone",brand:"Micronor",class:"Contraceptive",specific:"Progestin",controlled:"No",dose:"Varies"},
+  {generic:"ethinyl estradiol",brand:"Various",class:"Contraceptive/Hormone",specific:"Estrogen",controlled:"No",dose:"Varies"},
+  {generic:"clomiphene",brand:"Clomid",class:"Fertility Agent",specific:"Selective Estrogen Receptor Modulator",controlled:"No",dose:"Varies"},
+  {generic:"cetirizine",brand:"Zyrtec",class:"Antiallergy",specific:"2nd Generation H1 Antagonist",controlled:"No",dose:"Varies"},
+  {generic:"loratadine",brand:"Claritin",class:"Antiallergy",specific:"2nd Generation H1 Antagonist",controlled:"No",dose:"Varies"},
+  {generic:"fexofenadine",brand:"Allegra",class:"Antiallergy",specific:"2nd Generation H1 Antagonist",controlled:"No",dose:"Varies"},
+  {generic:"diphenhydramine",brand:"Benadryl",class:"Antiallergy/Sedative",specific:"1st Generation H1 Antagonist",controlled:"No",dose:"Varies"},
+  {generic:"chlorpheniramine",brand:"Chlor-Trimeton",class:"Antiallergy",specific:"1st Generation H1 Antagonist",controlled:"No",dose:"Varies"},
+  {generic:"pseudoephedrine",brand:"Sudafed",class:"Decongestant",specific:"Sympathomimetic",controlled:"No",dose:"Varies"},
+  {generic:"oxymetazoline",brand:"Afrin",class:"Decongestant",specific:"Alpha Adrenergic Agonist",controlled:"No",dose:"Nasal"},
+  {generic:"guaifenesin",brand:"Mucinex",class:"Expectorant",specific:"Expectorant",controlled:"No",dose:"Varies"},
+  {generic:"dextromethorphan",brand:"Robitussin DM",class:"Antitussive",specific:"Non-Opioid Antitussive",controlled:"No",dose:"Varies"},
+  {generic:"benzonatate",brand:"Tessalon",class:"Antitussive",specific:"Non-Opioid Antitussive",controlled:"No",dose:"Varies"},
+  {generic:"timolol",brand:"Timoptic",class:"Glaucoma Agent",specific:"Beta-Blocker (Ophthalmic)",controlled:"No",dose:"Ophthalmic"},
+  {generic:"brimonidine",brand:"Alphagan",class:"Glaucoma Agent",specific:"Alpha-2 Adrenergic Agonist",controlled:"No",dose:"Ophthalmic"},
+  {generic:"dorzolamide",brand:"Trusopt",class:"Glaucoma Agent",specific:"Carbonic Anhydrase Inhibitor",controlled:"No",dose:"Ophthalmic"},
+  {generic:"bimatoprost",brand:"Lumigan",class:"Glaucoma Agent",specific:"Prostaglandin Analog",controlled:"No",dose:"Ophthalmic"},
+  {generic:"acetazolamide",brand:"Diamox",class:"Diuretic/Glaucoma",specific:"Carbonic Anhydrase Inhibitor",controlled:"No",dose:"Varies"},
+  {generic:"ranibizumab",brand:"Lucentis",class:"Ophthalmic Agent",specific:"VEGF Inhibitor",controlled:"No",dose:"Intravitreal"},
+  {generic:"bevacizumab",brand:"Avastin",class:"Antineoplastic/Ophthalmic",specific:"VEGF Inhibitor",controlled:"No",dose:"Varies"},
+  {generic:"cyclosporine ophthalmic",brand:"Restasis",class:"Ophthalmic Anti-inflammatory",specific:"Calcineurin Inhibitor",controlled:"No",dose:"Ophthalmic"},
+  {generic:"tacrolimus",brand:"Prograf",class:"Immunosuppressant",specific:"Calcineurin Inhibitor",controlled:"No",dose:"Varies"},
+  {generic:"mycophenolate",brand:"CellCept",class:"Immunosuppressant",specific:"Antimetabolite",controlled:"No",dose:"Varies"},
+  {generic:"sirolimus",brand:"Rapamune",class:"Immunosuppressant",specific:"mTOR Inhibitor",controlled:"No",dose:"Varies"},
+  {generic:"leflunomide",brand:"Arava",class:"Antirheumatic",specific:"DMARD",controlled:"No",dose:"Varies"},
+  {generic:"sulfasalazine",brand:"Azulfidine",class:"Antirheumatic/GI",specific:"DMARD/Aminosalicylate",controlled:"No",dose:"Varies"},
+  {generic:"abatacept",brand:"Orencia",class:"Biologic",specific:"T-Cell Costimulation Inhibitor",controlled:"No",dose:"Varies"},
+  {generic:"tocilizumab",brand:"Actemra",class:"Biologic",specific:"IL-6 Receptor Antagonist",controlled:"No",dose:"Varies"},
+  {generic:"baricitinib",brand:"Olumiant",class:"JAK Inhibitor",specific:"JAK1/2 Inhibitor",controlled:"No",dose:"Varies"},
+  {generic:"tofacitinib",brand:"Xeljanz",class:"JAK Inhibitor",specific:"JAK1/3 Inhibitor",controlled:"No",dose:"Varies"},
+  {generic:"upadacitinib",brand:"Rinvoq",class:"JAK Inhibitor",specific:"JAK1 Inhibitor",controlled:"No",dose:"Varies"},
+  {generic:"apremilast",brand:"Otezla",class:"Antirheumatic",specific:"PDE-4 Inhibitor",controlled:"No",dose:"Varies"},
+  {generic:"secukinumab",brand:"Cosentyx",class:"Biologic",specific:"IL-17A Antagonist",controlled:"No",dose:"Varies"},
+  {generic:"ixekizumab",brand:"Taltz",class:"Biologic",specific:"IL-17A Antagonist",controlled:"No",dose:"Varies"},
+  {generic:"guselkumab",brand:"Tremfya",class:"Biologic",specific:"IL-23 Antagonist",controlled:"No",dose:"Varies"},
+  {generic:"risankizumab",brand:"Skyrizi",class:"Biologic",specific:"IL-23 Antagonist",controlled:"No",dose:"Varies"},
+  {generic:"colchicine",brand:"Colcrys",class:"Gout Agent",specific:"Anti-inflammatory (Gout)",controlled:"No",dose:"Varies"},
+  {generic:"probenecid",brand:"Benemid",class:"Gout Agent",specific:"Uricosuric Agent",controlled:"No",dose:"Varies"},
+  {generic:"febuxostat",brand:"Uloric",class:"Gout Agent",specific:"Xanthine Oxidase Inhibitor",controlled:"No",dose:"Varies"},
+  {generic:"pegloticase",brand:"Krystexxa",class:"Gout Agent",specific:"Urate Oxidase",controlled:"No",dose:"Varies"},
+  {generic:"methocarbamol",brand:"Robaxin",class:"Muscle Relaxant",specific:"Skeletal Muscle Relaxant",controlled:"No",dose:"Varies"},
+  {generic:"carisoprodol",brand:"Soma",class:"Muscle Relaxant",specific:"Skeletal Muscle Relaxant",controlled:"C-IV",dose:"Varies"},
+  {generic:"orphenadrine",brand:"Norflex",class:"Muscle Relaxant",specific:"Skeletal Muscle Relaxant",controlled:"No",dose:"Varies"},
+  {generic:"dantrolene",brand:"Dantrium",class:"Muscle Relaxant",specific:"Direct-Acting Skeletal Muscle Relaxant",controlled:"No",dose:"Varies"},
+  {generic:"botulinum toxin",brand:"Botox",class:"Neuromuscular Agent",specific:"Neurotoxin",controlled:"No",dose:"Varies"},
+  {generic:"varenicline",brand:"Chantix",class:"Smoking Cessation",specific:"Nicotinic Receptor Partial Agonist",controlled:"No",dose:"Varies"},
+  {generic:"bupropion",brand:"Zyban",class:"Smoking Cessation",specific:"Dopamine/Norepinephrine-Reuptake Inhibitor",controlled:"No",dose:"Varies"},
+  {generic:"nicotine",brand:"Nicorette, Nicoderm",class:"Smoking Cessation",specific:"Nicotinic Receptor Agonist",controlled:"No",dose:"Varies"},
+  {generic:"acamprosate",brand:"Campral",class:"Alcohol Cessation",specific:"NMDA Receptor Modulator",controlled:"No",dose:"Varies"},
+  {generic:"disulfiram",brand:"Antabuse",class:"Alcohol Cessation",specific:"Aldehyde Dehydrogenase Inhibitor",controlled:"No",dose:"Varies"},
+  {generic:"orlistat",brand:"Xenical, Alli",class:"Weight Management",specific:"Lipase Inhibitor",controlled:"No",dose:"Varies"},
+  {generic:"phentermine",brand:"Adipex-P",class:"Weight Management",specific:"Sympathomimetic Anorectic",controlled:"C-IV",dose:"Varies"},
+  {generic:"naltrexone and bupropion",brand:"Contrave",class:"Weight Management",specific:"Opioid Antagonist + NDRI",controlled:"No",dose:"Varies"},
+  {generic:"modafinil",brand:"Provigil",class:"CNS Stimulant",specific:"Wakefulness Promoting Agent",controlled:"C-IV",dose:"Varies"},
+  {generic:"armodafinil",brand:"Nuvigil",class:"CNS Stimulant",specific:"Wakefulness Promoting Agent",controlled:"C-IV",dose:"Varies"},
+  {generic:"atomoxetine",brand:"Strattera",class:"CNS Agent for ADHD",specific:"Selective Norepinephrine Reuptake Inhibitor",controlled:"No",dose:"Varies"},
+  {generic:"viloxazine",brand:"Qelbree",class:"CNS Agent for ADHD",specific:"Selective Norepinephrine Reuptake Inhibitor",controlled:"No",dose:"Varies"},
+  {generic:"eszopiclone",brand:"Lunesta",class:"Sedative",specific:"Nonbenzodiazepine Receptor Agonist",controlled:"C-IV",dose:"Varies"},
+  {generic:"zaleplon",brand:"Sonata",class:"Sedative",specific:"Nonbenzodiazepine Receptor Agonist",controlled:"C-IV",dose:"Varies"},
+  {generic:"suvorexant",brand:"Belsomra",class:"Sedative",specific:"Orexin Receptor Antagonist",controlled:"C-IV",dose:"Varies"},
+  {generic:"lemborexant",brand:"Dayvigo",class:"Sedative",specific:"Orexin Receptor Antagonist",controlled:"C-IV",dose:"Varies"},
+  {generic:"ramelteon",brand:"Rozerem",class:"Sedative",specific:"Melatonin Receptor Agonist",controlled:"No",dose:"Varies"},
+  {generic:"melatonin",brand:"Various",class:"Sedative",specific:"Melatonin Receptor Agonist",controlled:"No",dose:"Varies"},
+  {generic:"chlordiazepoxide",brand:"Librium",class:"Antianxiety",specific:"Benzodiazepine",controlled:"C-IV",dose:"Varies"},
+  {generic:"temazepam",brand:"Restoril",class:"Sedative",specific:"Benzodiazepine",controlled:"C-IV",dose:"Varies"},
+  {generic:"triazolam",brand:"Halcion",class:"Sedative",specific:"Benzodiazepine",controlled:"C-IV",dose:"Varies"},
+  {generic:"midazolam",brand:"Versed",class:"Sedative/Anesthetic",specific:"Benzodiazepine",controlled:"C-IV",dose:"Varies"},
+  {generic:"ketamine",brand:"Ketalar, Spravato",class:"Anesthetic/Antidepressant",specific:"NMDA Receptor Antagonist",controlled:"C-III",dose:"Varies"},
+  {generic:"esketamine",brand:"Spravato",class:"Antidepressant",specific:"NMDA Receptor Antagonist",controlled:"C-III",dose:"Intranasal"},
+  {generic:"brexpiprazole",brand:"Rexulti",class:"Antipsychotic",specific:"Serotonin-Dopamine Modulator",controlled:"No",dose:"Varies"},
+  {generic:"cariprazine",brand:"Vraylar",class:"Antipsychotic",specific:"D3/D2 Partial Agonist",controlled:"No",dose:"Varies"},
+  {generic:"iloperidone",brand:"Fanapt",class:"Antipsychotic",specific:"Second Generation Atypical Antipsychotic",controlled:"No",dose:"Varies"},
+  {generic:"asenapine",brand:"Saphris",class:"Antipsychotic",specific:"Second Generation Atypical Antipsychotic",controlled:"No",dose:"Varies"},
+  {generic:"pimavanserin",brand:"Nuplazid",class:"Antipsychotic",specific:"5-HT2A Inverse Agonist",controlled:"No",dose:"Varies"},
+  {generic:"lumateperone",brand:"Caplyta",class:"Antipsychotic",specific:"Serotonin-Dopamine Modulator",controlled:"No",dose:"Varies"},
+];
+
+// ===================== GAME STATE =====================
+const MAX_GUESSES = 6;
+let currentMode = 'daily';
+let currentDrug = null;
+let currentGuess = '';
+let guesses = [];
+let gameOver = false;
+let keyStates = {};
+let practiceIndex = 0;
+
+// Daily drug seeded by date
+function getDailyDrug() {
+  const now = new Date();
+  const epoch = new Date(2025, 0, 1);
+  const dayNum = Math.floor((now - epoch) / 86400000);
+  return DRUGS[dayNum % DRUGS.length];
+}
+
+function getPracticeOrder() {
+  const seed = 42;
+  const arr = [...DRUGS.keys()];
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = (seed * (i + 1) * 1234567) % (i + 1);
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+const practiceOrder = getPracticeOrder();
+
+// ===================== STATS =====================
+function getStats() {
+  const s = localStorage.getItem('pharmdle_stats');
+  return s ? JSON.parse(s) : { played: 0, won: 0, streak: 0, maxStreak: 0, dist: [0,0,0,0,0,0], lastDate: '' };
+}
+
+function saveStats(won, numGuesses) {
+  const s = getStats();
+  const today = new Date().toDateString();
+  if (s.lastDate === today && currentMode === 'daily') return;
+  s.played++;
+  if (won) {
+    s.won++;
+    s.streak++;
+    if (s.streak > s.maxStreak) s.maxStreak = s.streak;
+    if (numGuesses >= 1 && numGuesses <= 6) s.dist[numGuesses - 1]++;
+  } else {
+    s.streak = 0;
+  }
+  s.lastDate = today;
+  localStorage.setItem('pharmdle_stats', JSON.stringify(s));
+}
+
+// ===================== INIT =====================
+function initGame() {
+  if (currentMode === 'daily') {
+    currentDrug = getDailyDrug();
+  } else {
+    currentDrug = DRUGS[practiceOrder[practiceIndex % practiceOrder.length]];
+  }
+
+  currentGuess = '';
+  guesses = [];
+  gameOver = false;
+  keyStates = {};
+
+  buildGrid();
+  buildKeyboard();
+  updateHints(0);
+  updateHintValues();
+
+  document.getElementById('next-btn').classList.toggle('hidden', currentMode === 'daily');
+}
+
+function setMode(mode) {
+  currentMode = mode;
+  document.getElementById('btn-daily').classList.toggle('active', mode === 'daily');
+  document.getElementById('btn-practice').classList.toggle('active', mode === 'practice');
+  closeModal('modal-result');
+  initGame();
+}
+
+// ===================== GRID =====================
+function getLetterSegments(word) {
+  // Returns array: {type: 'letter'|'space', char}
+  const segments = [];
+  for (const ch of word) {
+    if (ch === ' ') segments.push({ type: 'space', char: ' ' });
+    else segments.push({ type: 'letter', char: ch.toLowerCase() });
+  }
+  return segments;
+}
+
+function getLettersOnly(word) {
+  return word.replace(/\s/g, '').toLowerCase();
+}
+
+function buildGrid() {
+  const container = document.getElementById('grid-container');
+  container.innerHTML = '';
+  const segments = getLetterSegments(currentDrug.generic);
+
+  for (let r = 0; r < MAX_GUESSES; r++) {
+    const row = document.createElement('div');
+    row.className = 'grid-row';
+    row.id = `row-${r}`;
+    segments.forEach((seg, i) => {
+      const tile = document.createElement('div');
+      if (seg.type === 'space') {
+        tile.className = 'tile space';
+        tile.textContent = '/';
+      } else {
+        tile.className = 'tile';
+        tile.id = `tile-${r}-${i}`;
+      }
+      row.appendChild(tile);
+    });
+    container.appendChild(row);
+  }
+}
+
+function buildKeyboard() {
+  const rows = [
+    ['q','w','e','r','t','y','u','i','o','p'],
+    ['a','s','d','f','g','h','j','k','l'],
+    ['ENTER','z','x','c','v','b','n','m','⌫']
+  ];
+  ['kb-row-1','kb-row-2','kb-row-3'].forEach((id, ri) => {
+    const el = document.getElementById(id);
+    el.innerHTML = '';
+    rows[ri].forEach(k => {
+      const btn = document.createElement('button');
+      btn.className = 'kb-key' + (k === 'ENTER' || k === '⌫' ? ' wide' : '');
+      btn.textContent = k;
+      btn.id = k === '⌫' ? 'kb-back' : k === 'ENTER' ? 'kb-enter' : `kb-${k}`;
+      btn.addEventListener('click', () => handleKey(k));
+      el.appendChild(btn);
+    });
+  });
+}
+
+// ===================== HINTS =====================
+function updateHints(numGuesses) {
+  // Drug class: always
+  // Controlled: always
+  // Specific class: after guess 2
+  // Brand: after guess 3
+
+  const specificLock = document.querySelector('#hint-specific .hint-label span');
+  const brandLock = document.getElementById('brand-lock');
+
+  if (numGuesses >= 2) {
+    document.getElementById('hint-specific').classList.remove('locked');
+    if (specificLock) specificLock.remove();
+  }
+  if (numGuesses >= 3) {
+    document.getElementById('hint-brand').classList.remove('locked');
+    if (brandLock) brandLock.remove();
+  }
+
+  document.getElementById('hint-controlled').classList.remove('locked');
+}
+
+function updateHintValues() {
+  document.getElementById('hv-class').textContent = currentDrug.class;
+  document.getElementById('hv-specific').textContent = guesses.length >= 2 ? currentDrug.specific : 'Locked';
+  document.getElementById('hv-brand').textContent = guesses.length >= 3 ? currentDrug.brand : 'Locked';
+  document.getElementById('hv-controlled').textContent = currentDrug.controlled === 'No' ? 'Not Controlled' : currentDrug.controlled;
+}
+
+// ===================== INPUT =====================
+document.addEventListener('keydown', e => {
+  if (gameOver) return;
+  if (document.querySelector('.modal-overlay:not(.hidden)')) return;
+  if (e.key === 'Enter') handleKey('ENTER');
+  else if (e.key === 'Backspace') handleKey('⌫');
+  else if (/^[a-zA-Z]$/.test(e.key)) handleKey(e.key.toLowerCase());
+});
+
+function handleKey(key) {
+  if (gameOver) return;
+  const letters = getLettersOnly(currentDrug.generic);
+
+  if (key === '⌫') {
+    if (currentGuess.length > 0) currentGuess = currentGuess.slice(0, -1);
+    renderCurrentGuess();
+    return;
+  }
+
+  if (key === 'ENTER') {
+    submitGuess();
+    return;
+  }
+
+  if (/^[a-z]$/.test(key) && currentGuess.length < letters.length) {
+    currentGuess += key;
+    renderCurrentGuess();
+  }
+}
+
+function renderCurrentGuess() {
+  const rowNum = guesses.length;
+  const segments = getLetterSegments(currentDrug.generic);
+  let letterIdx = 0;
+
+  segments.forEach((seg, i) => {
+    if (seg.type !== 'letter') return;
+    const tile = document.getElementById(`tile-${rowNum}-${i}`);
+    if (!tile) return;
+    const ch = currentGuess[letterIdx] || '';
+    tile.textContent = ch.toUpperCase();
+    tile.className = 'tile' + (ch ? ' filled' : '');
+    letterIdx++;
+  });
+}
+
+function submitGuess() {
+  const letters = getLettersOnly(currentDrug.generic);
+  if (currentGuess.length < letters.length) {
+    shakeTiles(guesses.length);
+    showToast(`Need ${letters.length} letters`);
+    return;
+  }
+
+  const result = scoreGuess(currentGuess, letters);
+  animateTiles(guesses.length, result);
+  guesses.push(currentGuess);
+  updateKeyColors(currentGuess, letters, result);
+  updateHints(guesses.length);
+  updateHintValues();
+
+  const won = result.every(r => r === 'correct');
+  const lost = !won && guesses.length >= MAX_GUESSES;
+
+  if (won || lost) {
+    gameOver = true;
+    if (currentMode === 'daily') saveStats(won, guesses.length);
+    setTimeout(() => showResult(won), 1800);
+  }
+
+  currentGuess = '';
+}
+
+// ===================== SCORING =====================
+function scoreGuess(guess, answer) {
+  const result = new Array(guess.length).fill('absent');
+  const ansArr = answer.split('');
+  const gArr = guess.split('');
+  const used = new Array(answer.length).fill(false);
+
+  // Correct pass
+  gArr.forEach((ch, i) => {
+    if (ch === ansArr[i]) { result[i] = 'correct'; used[i] = true; gArr[i] = null; }
+  });
+  // Present pass
+  gArr.forEach((ch, i) => {
+    if (!ch) return;
+    const j = ansArr.findIndex((a, idx) => !used[idx] && a === ch);
+    if (j !== -1) { result[i] = 'present'; used[j] = true; }
+  });
+
+  return result;
+}
+
+function animateTiles(rowNum, result) {
+  const segments = getLetterSegments(currentDrug.generic);
+  let letterIdx = 0;
+
+  segments.forEach((seg, i) => {
+    if (seg.type !== 'letter') return;
+    const tile = document.getElementById(`tile-${rowNum}-${i}`);
+    if (!tile) { letterIdx++; return; }
+    const state = result[letterIdx];
+    const delay = letterIdx * 120;
+    setTimeout(() => {
+      tile.className = `tile ${state}`;
+      tile.textContent = (currentGuess[letterIdx] || '').toUpperCase();
+    }, delay);
+    letterIdx++;
+  });
+}
+
+function shakeTiles(rowNum) {
+  const segments = getLetterSegments(currentDrug.generic);
+  segments.forEach((seg, i) => {
+    if (seg.type !== 'letter') return;
+    const tile = document.getElementById(`tile-${rowNum}-${i}`);
+    if (tile) { tile.classList.add('shake'); setTimeout(() => tile.classList.remove('shake'), 400); }
+  });
+}
+
+function updateKeyColors(guess, answer, result) {
+  const priority = { correct: 3, present: 2, absent: 1 };
+  guess.split('').forEach((ch, i) => {
+    const current = keyStates[ch] || 'none';
+    const next = result[i];
+    if (!current || priority[next] > (priority[current] || 0)) keyStates[ch] = next;
+    const btn = document.getElementById(`kb-${ch}`);
+    if (btn) btn.className = `kb-key ${keyStates[ch]}`;
+  });
+}
+
+// ===================== RESULT =====================
+function showResult(won) {
+  document.getElementById('result-title').textContent = won ? `🎉 Got it in ${guesses.length}!` : '😔 Better luck next time!';
+  document.getElementById('result-subtitle').textContent = won
+    ? guesses.length === 1 ? 'Perfect! Incredible!' : 'Great job!'
+    : `The answer was:`;
+  document.getElementById('res-name').textContent = currentDrug.generic.toUpperCase();
+  document.getElementById('res-brand').textContent = currentDrug.brand;
+  document.getElementById('res-class').textContent = currentDrug.class;
+  document.getElementById('res-specific').textContent = currentDrug.specific;
+  document.getElementById('res-controlled').textContent = currentDrug.controlled === 'No' ? 'Not Controlled' : currentDrug.controlled;
+  document.getElementById('res-dose').textContent = currentDrug.dose;
+
+  const emojiMap = { correct: '🟩', present: '🟨', absent: '⬜' };
+  const letters = getLettersOnly(currentDrug.generic);
+  let grid = `PHARMDLE ${currentMode === 'daily' ? '📅' : '🎯'} ${won ? guesses.length : 'X'}/${MAX_GUESSES}\n\n`;
+  guesses.forEach(g => {
+    const r = scoreGuess(g, letters);
+    grid += r.map(s => emojiMap[s]).join('') + '\n';
+  });
+  document.getElementById('share-grid').textContent = grid.trim();
+
+  document.getElementById('next-btn').classList.toggle('hidden', currentMode === 'daily');
+  document.getElementById('modal-result').classList.remove('hidden');
+}
+
+function copyResult() {
+  const text = document.getElementById('share-grid').textContent;
+  navigator.clipboard.writeText(text).then(() => showToast('Copied! 📋'));
+}
+
+function nextPractice() {
+  practiceIndex++;
+  closeModal('modal-result');
+  initGame();
+}
+
+// ===================== STATS =====================
+function showStats() {
+  const s = getStats();
+  const winPct = s.played ? Math.round((s.won / s.played) * 100) : 0;
+  const maxDist = Math.max(...s.dist, 1);
+
+  let html = `<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;text-align:center;margin-bottom:20px;">
+    ${[['Played',s.played],['Win %',winPct+'%'],['Streak',s.streak],['Best',s.maxStreak]].map(([l,v])=>
+      `<div style="background:var(--bg);border-radius:8px;padding:10px;"><div style="font-size:22px;font-weight:700;font-family:'DM Mono',monospace">${v}</div><div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-top:3px">${l}</div></div>`
+    ).join('')}
+  </div>
+  <div style="font-size:12px;font-family:'DM Mono',monospace;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin-bottom:10px;">Guess Distribution</div>
+  <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:16px;">
+    ${s.dist.map((d,i)=>`
+      <div style="display:flex;align-items:center;gap:8px;font-size:13px;font-family:'DM Mono',monospace;">
+        <span style="width:16px;text-align:right">${i+1}</span>
+        <div style="flex:1;background:var(--bg);border-radius:4px;overflow:hidden;">
+          <div style="height:22px;background:var(--correct);width:${Math.max(d/maxDist*100,d>0?5:0)}%;border-radius:4px;display:flex;align-items:center;padding-left:6px;color:white;font-size:12px;">${d||''}</div>
+        </div>
+      </div>`).join('')}
+  </div>`;
+
+  document.getElementById('stats-content').innerHTML = html;
+  document.getElementById('modal-stats').classList.remove('hidden');
+}
+
+function showHow() {
+  document.getElementById('modal-how').classList.remove('hidden');
+}
+
+function closeModal(id) {
+  document.getElementById(id).classList.add('hidden');
+}
+
+document.querySelectorAll('.modal-overlay').forEach(el => {
+  el.addEventListener('click', e => {
+    if (e.target === el) el.classList.add('hidden');
+  });
+});
+
+// ===================== TOAST =====================
+function showToast(msg) {
+  const existing = document.querySelector('.toast');
+  if (existing) existing.remove();
+  const t = document.createElement('div');
+  t.className = 'toast';
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 3000);
+}
+
+// ===================== START =====================
+initGame();
+</script>
+</body>
+</html>
